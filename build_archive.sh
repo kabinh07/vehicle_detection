@@ -1,8 +1,8 @@
 #!/bin/bash
 set -e
 CONTAINER=pytorch/torchserve:latest-cpu
-MODEL=best.pt
-NAME=vehicle-detection
+MODEL=best.torchscript
+NAME=vehicle
 VERSION=$1
 EXTRA=$2
 if [ $EXTRA ]; then
@@ -16,7 +16,7 @@ echo "VERSION: ${VERSION}"
 # create mar
 docker run --rm \
 -v $PWD/:/home/model-server \
--v $PWD/model_store:/model_store \
+-v $PWD/model-store:/model-store \
 -v $PWD/models:/models \
 --entrypoint /bin/bash \
 --workdir /home/model-server \
@@ -30,5 +30,16 @@ $CONTAINER \
 --requirements-file requirements.txt \
 ${EXTRA} \
 --force \
-&& mv ${NAME}.mar /model_store/
+&& mv ${NAME}.mar /model-store/
 "
+
+docker run --rm -itd --name vehicle \
+-p 127.0.0.1:8080:8080 \
+-p 127.0.0.1:8081:8081 \
+-p 127.0.0.1:8082:8082 \
+-v $(pwd)/model-store:/home/model-server/model-store \
+$CONTAINER \
+torchserve --start --ncs \
+--model-store model-store \
+--models vehicle=model-store/vehicle.mar \
+--disable-token-auth
